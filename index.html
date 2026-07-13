@@ -1,0 +1,766 @@
+<title>ICADE Comillas · Fall Timetable Builder</title>
+<style>
+:root{
+  --bg:#EAEAF1;
+  --surface:#FFFFFF;
+  --surface-2:#F4F3F8;
+  --ink:#1D1E29;
+  --muted:#6B6D7D;
+  --line:#D9D8E3;
+  --accent:#7C1633;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#F4DEE3;
+  --good:#1F6E52;
+  --bad:#B23A2E;
+  --bad-soft:#F6DEDA;
+  --shadow: 0 1px 2px rgba(29,30,41,.06), 0 8px 24px -12px rgba(29,30,41,.18);
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121319; --surface:#1B1D26; --surface-2:#21232E; --ink:#ECE9E5; --muted:#9A9CAC;
+    --line:#2E303C; --accent:#E2708A; --accent-ink:#1D1017; --accent-soft:#3B2530;
+    --good:#4FBE96; --bad:#E3695A; --bad-soft:#3A2422;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121319; --surface:#1B1D26; --surface-2:#21232E; --ink:#ECE9E5; --muted:#9A9CAC;
+  --line:#2E303C; --accent:#E2708A; --accent-ink:#1D1017; --accent-soft:#3B2530;
+  --good:#4FBE96; --bad:#E3695A; --bad-soft:#3A2422;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
+}
+:root[data-theme="light"]{
+  --bg:#EAEAF1; --surface:#FFFFFF; --surface-2:#F4F3F8; --ink:#1D1E29; --muted:#6B6D7D;
+  --line:#D9D8E3; --accent:#7C1633; --accent-ink:#FFFFFF; --accent-soft:#F4DEE3;
+  --good:#1F6E52; --bad:#B23A2E; --bad-soft:#F6DEDA;
+  --shadow: 0 1px 2px rgba(29,30,41,.06), 0 8px 24px -12px rgba(29,30,41,.18);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+}
+
+.app{max-width:1400px; margin:0 auto; padding:20px 20px 64px;}
+
+/* ---------- Header ---------- */
+.app-header{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:24px;
+  padding:22px 26px; margin-bottom:18px;
+  background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+  flex-wrap:wrap;
+}
+.app-header h1{
+  font-family:var(--serif); font-weight:600; font-size:1.7rem; margin:0 0 4px;
+  text-wrap:balance; letter-spacing:.2px;
+}
+.app-header .eyebrow{
+  font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 6px;
+}
+.app-header p{margin:0; color:var(--muted); font-size:.92rem; max-width:52ch;}
+.stat-row{display:flex; gap:10px; flex-wrap:wrap;}
+.stat{
+  background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+  padding:9px 14px; min-width:88px; text-align:center;
+}
+.stat .num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:1.25rem; font-weight:600; display:block;}
+.stat .label{font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+
+/* ---------- Layout ---------- */
+.layout{display:grid; grid-template-columns:380px 1fr; gap:18px; align-items:start;}
+@media (max-width: 900px){
+  .app{padding:14px 12px 40px;}
+  .app-header{padding:16px 18px;}
+  .layout{grid-template-columns:1fr;}
+  .schedule-panel{order:-1;}
+  .catalog{max-height:62vh; min-height:320px;}
+  .chip{padding:7px 12px; font-size:.78rem;}
+  .btn{padding:9px 14px;}
+}
+
+/* Phone: Everytime-style single-screen UX — timetable is the home view,
+   the catalog opens as a full-screen sheet instead of sitting stacked on the page. */
+.catalog-mobile-bar{display:none;}
+.fab{display:none;}
+@media (max-width: 640px){
+  .app{padding:10px 0 28px;}
+  .app-header, .schedule-panel{border:none; border-radius:0; box-shadow:none;}
+  .app-header{flex-direction:column; align-items:flex-start; gap:10px; padding:14px 14px 12px;}
+  .app-header h1{font-size:1.28rem;}
+  .app-header p{display:none;}
+  .stat-row{width:100%;}
+  .stat{flex:1; min-width:0; padding:7px 8px;}
+
+  .schedule-panel{padding:6px 0 14px; gap:8px;}
+  .schedule-toolbar, #summaryStrip, .tbd-tray{padding-left:14px; padding-right:14px;}
+  .schedule-toolbar h2{font-size:.95rem;}
+  #printBtn{display:none;}
+  #summaryStrip{display:none;}
+
+  .grid-scroll{border:none; border-radius:0;}
+  .grid-wrap{min-width:0; max-width:none;}
+  .grid-days, .grid-body{grid-template-columns:30px repeat(5,1fr);}
+  .grid-days .day-label{font-size:.72rem; padding:8px 1px; color:var(--ink); font-weight:600; letter-spacing:0;}
+  .time-axis .hour-label{font-size:.66rem; right:5px; color:var(--muted); font-family:var(--sans);}
+  .block{padding:4px 5px; border-radius:5px; border:none; box-shadow:none;}
+  .block .b-name{font-size:.68rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .block .line-full, .block .b-group{display:none;}
+  .block .line-room{display:block; font-size:.6rem; opacity:.95;}
+  .block .b-remove{display:flex; align-items:center; justify-content:center;}
+
+  .tbd-tray .summary-pill{
+    border-radius:0; border:none; border-bottom:1px solid var(--line); background:none;
+    width:100%; justify-content:space-between; padding:9px 2px;
+  }
+
+  .catalog-mobile-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:var(--serif); font-weight:600; font-size:1rem; padding:0 0 4px;
+  }
+  .catalog-mobile-bar button{
+    background:none; border:none; color:var(--muted); font-size:1.4rem; line-height:1;
+    padding:4px 8px; cursor:pointer;
+  }
+  .catalog{
+    position:fixed; inset:0; z-index:40; border-radius:0; max-height:100vh;
+    transform:translateY(100%); transition:transform .22s ease; box-shadow:none;
+  }
+  .catalog.open{transform:translateY(0);}
+
+  .fab{
+    display:flex; align-items:center; gap:6px; position:fixed; right:16px; bottom:18px; z-index:45;
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:999px;
+    padding:13px 20px; font-family:var(--sans); font-weight:700; font-size:.85rem;
+    box-shadow:var(--shadow); cursor:pointer;
+  }
+  .fab:active{transform:scale(.97);}
+}
+
+.panel{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+/* ---------- Sidebar / catalog ---------- */
+.catalog{display:flex; flex-direction:column; max-height:calc(100vh - 160px); min-height:420px;}
+.catalog-controls{padding:16px 16px 12px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px;}
+.search-input{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--ink); font-size:.92rem; font-family:var(--sans);
+}
+.search-input:focus{outline:2px solid var(--accent); outline-offset:1px;}
+.filter-row{display:flex; flex-wrap:wrap; gap:8px;}
+.dropdown{position:relative;}
+.dropdown-trigger{
+  display:flex; align-items:center; gap:6px; font-family:var(--sans); font-size:.78rem;
+  padding:7px 11px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2);
+  color:var(--ink); cursor:pointer; transition:border-color .12s, color .12s;
+}
+.dropdown-trigger:hover{border-color:var(--accent);}
+.dropdown-trigger:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+.dropdown-trigger .caret{font-size:.6rem; color:var(--muted); transition:transform .15s;}
+.dropdown-trigger.open .caret{transform:rotate(180deg);}
+.dropdown-trigger.has-selection{border-color:var(--accent); color:var(--accent);}
+.dd-count{
+  display:none; background:var(--accent); color:var(--accent-ink); font-size:.65rem; font-weight:700;
+  border-radius:999px; padding:1px 6px; line-height:1.3;
+}
+.dropdown-trigger.has-selection .dd-count{display:inline-block;}
+.dropdown-panel{
+  position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:210px; max-height:260px;
+  overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--shadow); padding:6px; display:none; flex-direction:column; gap:1px;
+}
+.dropdown-panel.open{display:flex;}
+.dropdown-option{
+  display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px; cursor:pointer;
+  font-size:.84rem; user-select:none;
+}
+.dropdown-option:hover{background:var(--surface-2);}
+.dropdown-option input{accent-color:var(--accent); width:15px; height:15px; flex:none;}
+.dropdown-footer{
+  display:flex; justify-content:flex-end; padding:6px 4px 2px; margin-top:2px; border-top:1px solid var(--line);
+}
+.dropdown-footer button{
+  background:none; border:none; color:var(--muted); font-size:.76rem; cursor:pointer; padding:2px 4px;
+}
+.dropdown-footer button:hover{color:var(--accent);}
+.result-count{font-size:.72rem; color:var(--muted); padding:2px 2px 0;}
+
+.course-list{overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; flex:1;}
+.course-card{
+  border:1px solid var(--line); border-radius:12px; padding:12px 13px; background:var(--surface-2);
+  display:flex; flex-direction:column; gap:6px;
+}
+.course-card.is-selected{border-color:var(--accent); background:color-mix(in srgb, var(--accent-soft) 70%, var(--surface-2));}
+.course-title{font-family:var(--serif); font-size:.98rem; font-weight:600; line-height:1.3; margin:0;}
+.course-meta{display:flex; flex-wrap:wrap; gap:5px; font-size:.68rem;}
+.tag{
+  font-family:var(--mono); text-transform:uppercase; letter-spacing:.04em;
+  padding:2px 7px; border-radius:5px; background:var(--surface); border:1px solid var(--line); color:var(--muted);
+}
+.tag.ects{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 40%, var(--line));}
+.course-sub{font-size:.78rem; color:var(--muted); line-height:1.4;}
+.course-sessions{display:flex; flex-wrap:wrap; gap:5px;}
+.session-chip{
+  font-family:var(--mono); font-size:.7rem; font-variant-numeric:tabular-nums;
+  padding:3px 7px; border-radius:6px; background:var(--surface); border:1px solid var(--line);
+}
+.prereq{font-size:.72rem; color:var(--muted); border-left:2px solid var(--line); padding-left:8px; line-height:1.4;}
+.card-actions{display:flex; justify-content:flex-end; margin-top:2px;}
+.btn{
+  font-family:var(--sans); font-size:.78rem; font-weight:600; padding:7px 14px; border-radius:8px;
+  border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); cursor:pointer;
+  transition:filter .12s, transform .04s;
+}
+.btn:hover{filter:brightness(1.06);}
+.btn:active{transform:scale(.98);}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.btn.secondary{background:transparent; color:var(--bad); border-color:var(--bad);}
+.btn.ghost{background:transparent; color:var(--muted); border-color:var(--line);}
+.no-results{padding:32px 16px; text-align:center; color:var(--muted); font-size:.88rem;}
+
+/* ---------- Grid / schedule ---------- */
+.schedule-panel{padding:16px 18px 20px; display:flex; flex-direction:column; gap:14px;}
+.schedule-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.schedule-toolbar h2{font-family:var(--serif); font-size:1.05rem; margin:0;}
+.toolbar-actions{display:flex; gap:8px;}
+.grid-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:12px;}
+.grid-wrap{position:relative; width:100%; max-width:600px; min-width:420px;}
+.grid-days{display:grid; grid-template-columns:52px repeat(5,1fr); border-bottom:1px solid var(--line); background:var(--surface-2);}
+.grid-days .corner{padding:8px 0;}
+.grid-days .day-label{
+  font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em;
+  text-align:center; padding:9px 4px; color:var(--muted); border-left:1px solid var(--line);
+}
+.grid-body{position:relative; display:grid; grid-template-columns:52px repeat(5,1fr);}
+.time-axis{position:relative;}
+.time-axis .hour-label{
+  position:absolute; left:0; right:6px; text-align:right; font-family:var(--mono);
+  font-size:.68rem; color:var(--muted); transform:translateY(-50%); font-variant-numeric:tabular-nums;
+}
+.day-col{position:relative; border-left:1px solid var(--line);}
+.hour-line{position:absolute; left:0; right:0; border-top:1px solid var(--line); pointer-events:none;}
+.hour-line.half{border-top-style:dashed; opacity:.55;}
+.block{
+  position:absolute; left:3px; right:3px; border-radius:8px; padding:5px 7px; overflow:hidden;
+  border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 2px rgba(0,0,0,.12); cursor:pointer;
+  display:flex; flex-direction:column; gap:1px;
+}
+.block .b-name{font-size:.72rem; font-weight:700; line-height:1.2; font-family:var(--sans);}
+.block .b-meta{font-size:.63rem; font-family:var(--mono); opacity:.85; line-height:1.25; font-variant-numeric:tabular-nums;}
+.block .line-room{display:none;}
+.block .b-remove{
+  position:absolute; top:3px; right:4px; width:16px; height:16px; border-radius:50%;
+  background:rgba(0,0,0,.18); color:#fff; border:none; font-size:.7rem; line-height:16px; text-align:center;
+  cursor:pointer; display:none;
+}
+.block:hover .b-remove{display:block;}
+
+.empty-grid{
+  padding:60px 20px; text-align:center; color:var(--muted); font-size:.9rem;
+  border:1px dashed var(--line); border-radius:12px; margin-top:4px;
+}
+
+/* ---------- Summary / TBD tray ---------- */
+.summary-strip{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+.summary-pill{
+  display:flex; align-items:center; gap:6px; font-size:.78rem; padding:5px 10px 5px 6px;
+  border-radius:999px; border:1px solid var(--line); background:var(--surface-2);
+}
+.swatch{width:10px; height:10px; border-radius:3px; flex:none;}
+.summary-pill button{
+  background:none; border:none; color:var(--muted); cursor:pointer; font-size:.85rem; padding:0 2px; line-height:1;
+}
+.tbd-tray{border-top:1px solid var(--line); padding-top:12px;}
+.tbd-tray h3{font-family:var(--serif); font-size:.88rem; margin:0 0 8px; color:var(--muted); font-weight:600;}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed; left:50%; bottom:24px; transform:translate(-50%, 12px); z-index:50;
+  background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; font-size:.85rem;
+  box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .18s, transform .18s;
+  max-width:min(480px,86vw); text-align:center;
+}
+#toast.show{opacity:1; transform:translate(-50%, 0);}
+#toast.error{background:var(--bad); color:#fff;}
+
+@media print{
+  .catalog, .app-header .stat-row, .toolbar-actions, #toast, .prereq{display:none !important;}
+  .layout{grid-template-columns:1fr;}
+  body{background:#fff;}
+}
+</style>
+
+<div class="app">
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Facultad de CC. Económicas y Empresariales — Comillas ICADE</p>
+      <h1>Fall Semester Timetable Builder</h1>
+      <p>Search the 2026–27 course list, add sections, and build a clash-free weekly schedule — just like you would on Everytime.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><span class="num" id="statCourses">0</span><span class="label">Courses</span></div>
+      <div class="stat"><span class="num" id="statEcts">0</span><span class="label">ECTS</span></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="panel catalog">
+      <div class="catalog-controls">
+        <div class="catalog-mobile-bar">
+          <span>Add courses</span>
+          <button id="catalogClose" type="button" aria-label="Close course list">×</button>
+        </div>
+        <input id="search" class="search-input" type="text" placeholder="Search course, professor, group…" autocomplete="off" />
+        <div class="filter-row">
+          <div class="dropdown" id="langDropdown">
+            <button class="dropdown-trigger" type="button" id="langTrigger">
+              Language <span class="dd-count" id="langCount"></span> <span class="caret">▾</span>
+            </button>
+            <div class="dropdown-panel" id="langPanel"></div>
+          </div>
+          <div class="dropdown" id="deptDropdown">
+            <button class="dropdown-trigger" type="button" id="deptTrigger">
+              Department <span class="dd-count" id="deptCount"></span> <span class="caret">▾</span>
+            </button>
+            <div class="dropdown-panel" id="deptPanel"></div>
+          </div>
+        </div>
+        <div class="result-count" id="resultCount"></div>
+      </div>
+      <div class="course-list" id="courseList"></div>
+    </section>
+
+    <section class="panel schedule-panel">
+      <div class="schedule-toolbar">
+        <h2>My Weekly Schedule</h2>
+        <div class="toolbar-actions">
+          <button class="btn ghost" id="printBtn" type="button">Print / Save image</button>
+          <button class="btn secondary" id="clearBtn" type="button">Clear all</button>
+        </div>
+      </div>
+
+      <div class="summary-strip" id="summaryStrip"></div>
+
+      <div id="gridArea"></div>
+
+      <div class="tbd-tray" id="tbdTray" hidden>
+        <h3>Selected — schedule to be confirmed (not shown on grid)</h3>
+        <div class="summary-strip" id="tbdList"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<button id="fab" class="fab" type="button" aria-label="Add courses">+ Add courses</button>
+
+<div id="toast"></div>
+
+<script>
+const COURSES = [{"id":0,"name":"Análisis de Servicios Financieros","ects":3,"year":5,"dept":"Finances","lang":"Spanish","group":"E2 + Analytics","prof":"Garvía Vega, Luis","room":"O-108","prereq":null,"sessions":[{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":1,"name":"Análisis Económico Internacional","ects":6,"year":3,"dept":"Economy","lang":"English","group":"E2","prof":"Claeys, Peter Guenther Antoon","room":"O-207","prereq":null,"sessions":[{"day":"Wed","start":"08:00","end":"12:30"}]},{"id":2,"name":"Análisis Económico Internacional","ects":6,"year":3,"dept":"Economy","lang":"Spanish","group":"E2 + Analytics","prof":"Aracil Fernández, Elisa María","room":"O-108","prereq":null,"sessions":[{"day":"Tue","start":"08:00","end":"10:00"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":3,"name":"Análisis Económico Internacional","ects":6,"year":3,"dept":"Economy","lang":"English","group":"E2 English","prof":"Navarro Hernández, Adriana Camila","room":"O-106","prereq":null,"sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Fri","start":"10:30","end":"12:30"}]},{"id":4,"name":"Análisis Económico Internacional","ects":6,"year":3,"dept":"Economy","lang":"Spanish","group":"E6","prof":"Dans Rodriguez, Noemi","room":"O-201B","prereq":null,"sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Fri","start":"08:00","end":"10:00"}]},{"id":5,"name":"Análisis Estratégico","ects":6,"year":3,"dept":"Management","lang":"Spanish","group":"E2","prof":"Amoribieta Alonso, Iñigo","room":"O-207","prereq":null,"sessions":[{"day":"Thu","start":"10:30","end":"12:30"},{"day":"Fri","start":"12:30","end":"14:30"}]},{"id":6,"name":"Análisis Estratégico","ects":6,"year":3,"dept":"Management","lang":"English","group":"E2 + Analytics","prof":"Amoribieta Alonso, Iñigo","room":"O-108","prereq":null,"sessions":[{"day":"Thu","start":"12:30","end":"14:30"},{"day":"Fri","start":"10:30","end":"12:30"}]},{"id":7,"name":"Análisis Estratégico","ects":6,"year":3,"dept":"Management","lang":"English","group":"E2 English","prof":"Osorio Pitarch, Jacobo","room":"O-106","prereq":null,"sessions":[{"day":"Mon","start":"08:00","end":"10:00"},{"day":"Tue","start":"08:00","end":"10:00"}]},{"id":8,"name":"Análisis Estratégico","ects":6,"year":4,"dept":"Management","lang":"Spanish","group":"E6","prof":"Sobrino de Toro, José Javier","room":"O-307 / O-311","prereq":null,"sessions":[{"day":"Mon","start":"08:00","end":"10:00"},{"day":"Fri","start":"10:30","end":"12:30"}]},{"id":9,"name":"Aprendizaje y Servicio","ects":3,"year":4,"dept":"Social Consulting","lang":"Spanish","group":"E6 + Analytics","prof":"Alba Campillejo, Rafael","room":"TBD","prereq":null,"sessions":[]},{"id":10,"name":"Artificial Intelligence in Capital Markets","ects":6,"year":4,"dept":"Quantitatives Methods","lang":"English","group":"E8","prof":"Aza Hidalgo, Marcos","room":"O-201A / O-203","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Mon","start":"19:00","end":"21:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":11,"name":"Big Data","ects":3,"year":3,"dept":"Quantitatives Methods","lang":"Spanish","group":"E8","prof":"Vallez Fernández, Carlos Miguel","room":"O-102","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Mon","start":"08:00","end":"10:00"}]},{"id":12,"name":"Business Ethics and Corporate Social Responsibility","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain A","prof":"Carbajo, Carlos","room":"O-306","prereq":null,"sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":13,"name":"Business Ethics and Corporate Social Responsibility","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain B","prof":"Hernández, María de la Esperanza","room":"O-102","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":14,"name":"Business Internationalization","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Krasnokutska, Nataliia","room":"O-201A","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":15,"name":"Business Start-ups / New Business Creation","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain A","prof":"Gil Serra, Juan Antonio","room":"O-208","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Wed","start":"15:00","end":"17:00"}]},{"id":16,"name":"Business Start-ups / New Business Creation","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain B","prof":"Carcasona García, Alfonso","room":"O-206 / O-207","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Wed","start":"15:00","end":"17:00"}]},{"id":17,"name":"Business Strategies","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Ramiro, Rafael","room":"O-312","prereq":null,"sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":18,"name":"Business, Society & Purpose","ects":3,"year":4,"dept":"Social Consulting","lang":"English","group":"Diploma Business in Spain","prof":"Elola Oca, José María","room":"O-203","prereq":null,"sessions":[{"day":"Thu","start":"08:00","end":"10:00"}]},{"id":19,"name":"Business, Society & Purpose (Service Learning)","ects":3,"year":4,"dept":"Social Consulting","lang":"English","group":"Diploma Business in Spain","prof":"Morales Pérez, Macarena","room":"O-104","prereq":null,"sessions":[{"day":"Mon","start":"10:30","end":"12:30"}]},{"id":20,"name":"Cine e Ideología en la España del Franquismo","ects":6,"year":3,"dept":"Management/Humanities","lang":"Spanish","group":"Diploma Business in Spain","prof":"Ramos Fernández, María Eugenia","room":"O-311","prereq":null,"sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Wed","start":"10:30","end":"12:30"}]},{"id":21,"name":"Consultoría Estratégica/Strategic Consulting","ects":3,"year":5,"dept":"Management","lang":"Spanish","group":"E2 + Analytics Gr.1","prof":"Vara García, Rafael","room":"O-109","prereq":null,"sessions":[{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":22,"name":"Consultoría Estratégica/Strategic Consulting","ects":3,"year":5,"dept":"Management","lang":"Spanish","group":"E2 + Analytics Gr.2","prof":"Vara García, Rafael","room":"O-109","prereq":null,"sessions":[{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":23,"name":"Consumer Behaviour","ects":6,"year":3,"dept":"Marketing","lang":"English","group":"Diploma Business in Spain","prof":"Rosales, Marta","room":"O-312","prereq":null,"sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Wed","start":"10:30","end":"12:30"}]},{"id":24,"name":"Contabilidad de Gestión","ects":6,"year":3,"dept":"Finances","lang":"Spanish","group":"E6","prof":"Fullana Belda, Carmen","room":"O-103","prereq":"Introduction to Accounting.","sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":25,"name":"Customer Intelligence & Sales Forecasting","ects":6,"year":4,"dept":"Quantitatives Methods","lang":"English","group":"E8","prof":"Muñoz Bahamonde, Luis","room":"O-203","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":26,"name":"Cybersecurity","ects":3,"year":3,"dept":"Quantitatives Methods","lang":"English","group":"E8","prof":"Laborda Castellote, Sergio","room":"O-102","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Tue","start":"08:00","end":"10:00"}]},{"id":27,"name":"Data Analysis and Visualization / Análisis de Datos y Visualización","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Barrachina Fernández, María de las Mercedes","room":"O-206","prereq":"Excel, Statistics and Calculus","sessions":[{"day":"Mon","start":"08:00","end":"10:00"},{"day":"Wed","start":"08:00","end":"10:00"}]},{"id":28,"name":"Datos Masivos / Big Data","ects":3,"year":3,"dept":"Quantitatives Methods","lang":"Spanish","group":"E6 + Analytics","prof":"Molero Alonso, Adriana Carla","room":"O-104","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":29,"name":"Derivados Financieros / Financial Derivatives","ects":3,"year":4,"dept":"Finances","lang":"Spanish","group":"E2 + Analytics","prof":"Cueto Muñoz, José Manuel","room":"O-208","prereq":null,"sessions":[{"day":"Fri","start":"12:30","end":"14:30"}]},{"id":30,"name":"Dirección de operaciones","ects":6,"year":3,"dept":"Management","lang":"Spanish","group":"E4","prof":"TBD","room":"O-305","prereq":"Introduction to Business.","sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":31,"name":"Dirección de Recursos Humanos","ects":6,"year":4,"dept":"Management","lang":"Spanish","group":"E6","prof":"Martínez Morán, Pedro César","room":"O-311","prereq":null,"sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":32,"name":"Economía Digital/Digital Economics","ects":6,"year":5,"dept":"Economy","lang":"English","group":"E2 + Analytics","prof":"Jung Lusiardo, Juan Felipe","room":"O-201A / O-103","prereq":null,"sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":33,"name":"Economía Española","ects":6,"year":3,"dept":"Economy","lang":"Spanish","group":"E4","prof":"Ramos Llanos, Antonio Javier","room":"O-107","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":34,"name":"Economía Política Internacional","ects":6,"year":4,"dept":"Economy","lang":"English","group":"E2 English","prof":"Robinson, Robert Andrew","room":"O-210","prereq":null,"sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":35,"name":"Economía Política Internacional","ects":6,"year":4,"dept":"Economy","lang":"English","group":"E2","prof":"Montti, Angela Oriana","room":"O-107","prereq":null,"sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":36,"name":"Economics of the European Union","ects":6,"year":4,"dept":"Economy","lang":"English","group":"Diploma Business in Spain A","prof":"Wirth, Eszter","room":"O-308","prereq":null,"sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Wed","start":"10:30","end":"12:30"}]},{"id":37,"name":"Economics of the European Union","ects":6,"year":4,"dept":"Economy","lang":"English","group":"Diploma Business in Spain B","prof":"Wirth, Eszter","room":"O-312","prereq":null,"sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":38,"name":"Entorno Global de los Negocios","ects":6,"year":3,"dept":"Management","lang":"English","group":"E2 English","prof":"Fernández Méndez, Laura","room":"O-106","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":39,"name":"Entorno Global de los Negocios","ects":6,"year":3,"dept":"Management","lang":"Spanish","group":"E2","prof":"Labajo González, María Victoria","room":"O-207","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":40,"name":"Estudios Regionales III: Política y Sociedad en Oriente Medio","ects":3,"year":4,"dept":"Int. Relations","lang":"English","group":"E6 + Analytics","prof":"Ruiz Mateos, Helena","room":"O-303","prereq":null,"sessions":[{"day":"Mon","start":"10:30","end":"12:30"}]},{"id":41,"name":"Ética y Responsabilidad Social de la Empresa","ects":6,"year":4,"dept":"Management","lang":"English","group":"E2 English","prof":"Hernández Cuadra, María de la Esperanza","room":"O-210","prereq":null,"sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":42,"name":"Ética y Responsabilidad Social de la Empresa","ects":6,"year":4,"dept":"Management","lang":"Spanish","group":"E2","prof":"Pareja Cano, Braulio","room":"O-107","prereq":null,"sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":43,"name":"Financial Econometrics","ects":6,"year":5,"dept":"Economy","lang":"English","group":"E2 + Analytics","prof":"Díaz Aguiluz, Elena María","room":"O-108 / O-103","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":44,"name":"Financial Markets","ects":6,"year":3,"dept":"Finances","lang":"English","group":"Diploma Business in Spain B","prof":"Garrudo Mota Guedes, Rui Pedro","room":"O-304","prereq":"Introduction to Finances","sessions":[{"day":"Wed","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":45,"name":"Financial Markets","ects":6,"year":3,"dept":"Finances","lang":"English","group":"Diploma Business in Spain A","prof":"Garvía Vega, Luis","room":"O-108","prereq":"Introduction to Finances","sessions":[{"day":"Mon","start":"08:00","end":"10:00"},{"day":"Wed","start":"10:30","end":"12:30"}]},{"id":46,"name":"Financial Simulation","ects":3,"year":3,"dept":"Quantitatives Methods","lang":"English","group":"E8","prof":"Rodríguez Garnica, Gabriel","room":"O-109","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Thu","start":"08:00","end":"10:00"}]},{"id":47,"name":"Finanzas Corporativas","ects":6,"year":3,"dept":"Finances","lang":"English","group":"E2 + Analytics","prof":"Sáenz-Díez Rojas, Rocío","room":"O-108","prereq":"Introduction to Finance.","sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Tue","start":"12:30","end":"14:30"}]},{"id":48,"name":"Finanzas Corporativas","ects":6,"year":3,"dept":"Finances","lang":"English","group":"E2 English","prof":"Lamo Carcamo, Javier","room":"O-106","prereq":"Introduction to Finance.","sessions":[{"day":"Wed","start":"08:00","end":"10:00"},{"day":"Fri","start":"08:00","end":"10:00"}]},{"id":49,"name":"Finanzas Corporativas","ects":6,"year":3,"dept":"Finances","lang":"Spanish","group":"E2","prof":"Pérez Renovales, David","room":"O-207","prereq":"Introduction to Finance.","sessions":[{"day":"Tue","start":"08:00","end":"10:00"},{"day":"Thu","start":"08:00","end":"10:00"}]},{"id":50,"name":"Fundamentos de Finanzas","ects":6,"year":3,"dept":"Finances","lang":"Spanish","group":"E6","prof":"Bermejo Climent, Ramón","room":"O-103","prereq":null,"sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Fri","start":"10:30","end":"12:30"}]},{"id":51,"name":"Fundamentos de Marketing / Foundations of Marketing","ects":3,"year":2,"dept":"Marketing","lang":"Spanish","group":"E6","prof":"Sierra Moral, Laura","room":"O-207","prereq":null,"sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":52,"name":"Fusiones y Adquisiciones y Reestructuraciones Empresariales","ects":6,"year":4,"dept":"Finances","lang":"Spanish","group":"(E2)_FIN","prof":"Castejón Hernández, Ignacio","room":"O-107","prereq":"Introduction to finance and Financial Analysis.","sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Fri","start":"14:30","end":"16:00"}]},{"id":53,"name":"Fusiones y Adquisiciones y Reestructuraciones Empresariales","ects":6,"year":4,"dept":"Finances","lang":"English","group":"(E2)_FIN","prof":"Carbajo Domínguez, Javier","room":"O-104","prereq":"Introduction to finance and Financial Analysis.","sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Fri","start":"14:30","end":"16:00"}]},{"id":54,"name":"Gestión de Carteras e Inversiones","ects":6,"year":4,"dept":"Finances","lang":"Spanish","group":"(E2)_FIN","prof":"Prieto Funes, Ignacio","room":"O-106","prereq":"Introduction to Finance and Corporate Finance","sessions":[{"day":"Tue","start":"19:00","end":"21:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":55,"name":"Gestión de Carteras e Inversiones","ects":6,"year":4,"dept":"Finances","lang":"English","group":"(E2)_FIN","prof":"Corzo Santamaría, María Teresa","room":"O-108","prereq":"Introduction to Finance and Corporate Finance","sessions":[{"day":"Tue","start":"19:00","end":"21:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":56,"name":"Gestión de Proyectos/Project Management","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.1","prof":"Antonides Campos, Robert James","room":"O-109 / O-108","prereq":null,"sessions":[{"day":"Mon","start":"15:00","end":"17:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":57,"name":"Gestión de Proyectos/Project Management","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.2","prof":"Antonides Campos, Robert James","room":"O-109 / O-108","prereq":null,"sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Wed","start":"19:00","end":"21:00"}]},{"id":58,"name":"Gestión Estratégica de la Marca / Branding","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"(E2)_MK","prof":"Reig Ramellat, Rosa María","room":"O-107","prereq":null,"sessions":[{"day":"Mon","start":"15:00","end":"17:00"},{"day":"Wed","start":"19:00","end":"21:00"}]},{"id":59,"name":"Gestión Estratégica de la Marca / Branding","ects":6,"year":4,"dept":"Marketing","lang":"Spanish","group":"(E2)_MK","prof":"Melara San Román, María del Pilar","room":"O-106","prereq":null,"sessions":[{"day":"Mon","start":"15:00","end":"17:00"},{"day":"Wed","start":"19:00","end":"21:00"}]},{"id":60,"name":"Human Resources Management","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain A","prof":"Merino Verona, Sandra","room":"O-203","prereq":"Organizational Behaviour","sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":61,"name":"Human Resources Management","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain B","prof":"Molina Rivera, Javier","room":"O-301 / O-311","prereq":"Organizational Behaviour","sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":62,"name":"Innovación y Cambio Tecnológico/Innovation and Technological Change","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.1","prof":"Moro Cañada, Blanca","room":"O-108 / O-109","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Wed","start":"15:00","end":"17:00"}]},{"id":63,"name":"Innovación y Cambio Tecnológico/Innovation and Technological Change","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.2","prof":"Moro Cañada, Blanca","room":"O-108 / O-109","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Tue","start":"17:00","end":"19:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":64,"name":"Innovación y Estrategia","ects":6,"year":4,"dept":"Management","lang":"English","group":"(E2)_GES","prof":"Krasnokutska, Nataliia","room":"O-102","prereq":null,"sessions":[{"day":"Tue","start":"19:00","end":"21:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":65,"name":"Innovación y Estrategia","ects":6,"year":4,"dept":"Management","lang":"Spanish","group":"(E2)_GES","prof":"López Gómez, Miguel Ángel","room":"O-104","prereq":null,"sessions":[{"day":"Tue","start":"19:00","end":"21:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":66,"name":"International Finance","ects":6,"year":4,"dept":"Finances","lang":"English","group":"Diploma Business in Spain","prof":"Tordesillas Cobos, Carlos","room":"O-109","prereq":"Introduction to Finance","sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":67,"name":"International Finance","ects":6,"year":4,"dept":"Finances","lang":"English","group":"Diploma Business in Spain","prof":"Tordesillas Cobos, Carlos","room":"O-301","prereq":"Introduction to Finance","sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":68,"name":"International Marketing","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"Diploma Business in Spain","prof":"Fernandez del Hoyo, Alfonso","room":"O-310","prereq":"Introduction to Marketing","sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Wed","start":"15:00","end":"17:00"}]},{"id":69,"name":"Introduction to Finance","ects":6,"year":4,"dept":"Finances","lang":"English","group":"Diploma Business in Spain","prof":"Vaquero, Esther","room":"O-203","prereq":null,"sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":70,"name":"Introduction to Marketing","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"Diploma Business in Spain","prof":"Rosales, Marta","room":"O-201A","prereq":null,"sessions":[{"day":"Mon","start":"08:00","end":"10:00"},{"day":"Wed","start":"08:00","end":"10:00"}]},{"id":71,"name":"Investigación de Mercados","ects":6,"year":4,"dept":"Marketing","lang":"Spanish","group":"E6","prof":"Hernández Olalla, María Luisa","room":"O-209 / O-311","prereq":"Introduction to Marketing and Statistics","sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Fri","start":"12:30","end":"14:30"}]},{"id":72,"name":"Investigación de Mercados","ects":6,"year":3,"dept":"Marketing","lang":"Spanish","group":"E2 + Analytics","prof":"De Garcillán López-Rúa, Mencía Amalia","room":"O-108","prereq":"Introduction to Marketing and Statistics","sessions":[{"day":"Thu","start":"08:00","end":"10:00"},{"day":"Fri","start":"08:00","end":"10:00"}]},{"id":73,"name":"Investigación de Mercados","ects":6,"year":3,"dept":"Marketing","lang":"English","group":"E2 English","prof":"Vilá Trepat, Irene","room":"O-106","prereq":"Introduction to Marketing and Statistics","sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":74,"name":"Investigación de Mercados","ects":6,"year":3,"dept":"Marketing","lang":"Spanish","group":"E2","prof":"Hernández Olalla, María Luisa","room":"O-207","prereq":"Introduction to Marketing and Statistics","sessions":[{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Fri","start":"12:30","end":"14:30"}]},{"id":75,"name":"Leadership and Change Management","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Gismera Tierno, Eduardo","room":"O-311","prereq":null,"sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Wed","start":"08:00","end":"10:00"}]},{"id":76,"name":"Machine Learning I: Regresión y Clasificación","ects":6,"year":3,"dept":"Quantitatives Methods","lang":"Spanish","group":"E2 + Analytics","prof":"Martínez de Ibarreta Zorita, Carlos","room":"O-108","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Tue","start":"10:30","end":"12:30"},{"day":"Fri","start":"12:30","end":"14:30"}]},{"id":77,"name":"Marketing Analítico / Marketing Analytics","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"E2 + Analytics A","prof":"Rosendo Ríos, Verónica","room":"O-209","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":78,"name":"Marketing Analítico / Marketing Analytics","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"E2 + Analytics B","prof":"Rosendo Ríos, Verónica","room":"O-210","prereq":"Very technical course. Phyton, R+, Programming and Maths","sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Thu","start":"10:30","end":"12:30"}]},{"id":79,"name":"Marketing Management","ects":6,"year":3,"dept":"Marketing","lang":"English","group":"Diploma Business in Spain","prof":"Palencia Alacid, Pedro","room":"O-306","prereq":"Introduction to Marketing and Marketing Research","sessions":[{"day":"Wed","start":"08:00","end":"10:00"},{"day":"Thu","start":"08:00","end":"10:00"}]},{"id":80,"name":"Masterpieces of Hispanic Literatures *(In order to enroll this course, please send an email to jcalvo@comillas showing a proof that you took before a literature class)","ects":6,"year":4,"dept":"Management/Humanities","lang":"English","group":"Diploma Business in Spain","prof":"Fernández Abella, Rubén","room":"O-102","prereq":"A passion for reading. Some background in literature classes will be appreciated. (In order to enroll this course, please send an email to jcalvo@comillas showing a proof that you took before a literature class)","sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Tue","start":"17:00","end":"19:00"}]},{"id":81,"name":"Mercados Financieros","ects":6,"year":4,"dept":"Finances","lang":"Spanish","group":"E6","prof":"Martín Bujack, Karin Alejandra Irene","room":"O-308","prereq":"Accounting, Macroeconomics, Finance","sessions":[{"day":"Mon","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":82,"name":"Modelos para la Toma de Decisiones Empresariales","ects":6,"year":3,"dept":"Quantitatives Methods","lang":"Spanish","group":"E4","prof":"Ciller Cutillas, Pedro","room":"O-204","prereq":"Mathematics and Statistics","sessions":[{"day":"Tue","start":"12:30","end":"14:30"},{"day":"Thu","start":"12:30","end":"14:30"}]},{"id":83,"name":"Negotiation techniques","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain A","prof":"Sanchez Prieto, Guillermo","room":"O-312","prereq":null,"sessions":[{"day":"Mon","start":"15:00","end":"17:00"},{"day":"Tue","start":"08:00","end":"10:00"}]},{"id":84,"name":"Negotiation techniques","ects":6,"year":4,"dept":"Management","lang":"English","group":"Diploma Business in Spain B","prof":"Sanchez Prieto, Guillermo","room":"O-312","prereq":null,"sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Tue","start":"10:30","end":"12:30"}]},{"id":85,"name":"Nuevos Modelos de Negocio/New Business Models","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.1","prof":"Moreno Medina, Francisco Javier","room":"O-103 / O-108","prereq":null,"sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":86,"name":"Nuevos Modelos de Negocio/New Business Models","ects":6,"year":5,"dept":"Management","lang":"English","group":"E2 + Analytics Gr.2","prof":"Moreno Medina, Francisco Javier","room":"O-109","prereq":null,"sessions":[{"day":"Mon","start":"19:00","end":"21:00"},{"day":"Thu","start":"19:00","end":"21:00"}]},{"id":87,"name":"OLÉ: Overview of Life in España","ects":6,"year":3,"dept":"Management/Humanities","lang":"English","group":"Diploma Business in Spain","prof":"Luna de Oliviera, Sarah","room":"O-104","prereq":"People who have knowledge of the history of Spain and who want to delve deeper into current affairs","sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":88,"name":"Operations Management","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain A","prof":"Ramírez de Verger, Fernando","room":"201A/310","prereq":"Introduction to Business","sessions":[{"day":"Mon","start":"10:30","end":"12:30"},{"day":"Tue","start":"10:30","end":"12:30"}]},{"id":89,"name":"Operations Management","ects":6,"year":null,"dept":"Management","lang":"English","group":"Diploma Business in Spain B","prof":"Hernandez García, David","room":"E-102","prereq":"Introduction to Business","sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Thu","start":"15:00","end":"17:00"}]},{"id":90,"name":"Operations Management","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain C","prof":"Alonso Monge, Jorge","room":"O-205 / E-102","prereq":"Introduction to Business","sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Tue","start":"17:00","end":"19:00"}]},{"id":91,"name":"Operations Management (Intensive Mode). Sessions on: Sept. 4, Oct. 5, 7 & 19-23, Nov.4, 11& 18","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Morales Contreras, Manuel","room":"TBD","prereq":"Introduction to Business","sessions":[]},{"id":92,"name":"Organizational Behaviour","ects":6,"year":3,"dept":"Management","lang":"English","group":"Diploma Business in Spain","prof":"Pérez Zapata, Óscar","room":"E-102 / O-102","prereq":null,"sessions":[{"day":"Wed","start":"17:00","end":"19:00"},{"day":"Thu","start":"17:00","end":"19:00"}]},{"id":93,"name":"People Analytics * (*(In order to enroll this course, please send an email to jcalvo@comillas showing a proof that you have a basic previous knowledge)","ects":6,"year":3,"dept":"Management","lang":"English","group":"E8","prof":"García Romanos, Jesús","room":"O-102","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Thu","start":"10:30","end":"12:30"},{"day":"Fri","start":"10:30","end":"12:30"}]},{"id":94,"name":"Spanish as Foreign Language A1 (mandatory level test to enroll before coming to Madrid)","ects":6,"year":null,"dept":"Modern Languages Institute","lang":"Spanish","group":"Diploma Business in Spain","prof":"Professor and classroom assigned after taking the test. The schedule will always be either Mondays and Wednesdays or Tuesdays and Thursdays 14,30-16,00h","room":null,"prereq":null,"sessions":[{"day":"Mon","start":"14:30","end":"16:00"},{"day":"Tue","start":"14:30","end":"16:00"},{"day":"Wed","start":"14:30","end":"16:00"},{"day":"Thu","start":"14:30","end":"16:00"}]},{"id":95,"name":"Spanish as Foreign Language A2 (mandatory level test to enroll before coming to Madrid)","ects":6,"year":null,"dept":"Modern Languages Institute","lang":"Spanish","group":"Diploma Business in Spain","prof":"Professor and classroom assigned after taking the test. The schedule will always be either Mondays and Wednesdays or Tuesdays and Thursdays 14,30-16,00h","room":null,"prereq":null,"sessions":[{"day":"Mon","start":"14:30","end":"16:00"},{"day":"Tue","start":"14:30","end":"16:00"},{"day":"Wed","start":"14:30","end":"16:00"},{"day":"Thu","start":"14:30","end":"16:00"}]},{"id":96,"name":"Spanish as Foreign Language B1 (mandatory level test to enroll before coming to Madrid)","ects":6,"year":null,"dept":"Modern Languages Institute","lang":"Spanish","group":"Diploma Business in Spain","prof":"Professor and classroom assigned after taking the test. The schedule will always be either Mondays and Wednesdays or Tuesdays and Thursdays 14,30-16,00h","room":null,"prereq":null,"sessions":[{"day":"Mon","start":"14:30","end":"16:00"},{"day":"Tue","start":"14:30","end":"16:00"},{"day":"Wed","start":"14:30","end":"16:00"},{"day":"Thu","start":"14:30","end":"16:00"}]},{"id":97,"name":"Spanish as Foreign Language B2 (mandatory level test to enroll before coming to Madrid)","ects":6,"year":null,"dept":"Modern Languages Institute","lang":"Spanish","group":"Diploma Business in Spain","prof":"Professor and classroom assigned after taking the test. The schedule will always be either Mondays and Wednesdays or Tuesdays and Thursdays 14,30-16,00h","room":null,"prereq":null,"sessions":[{"day":"Mon","start":"14:30","end":"16:00"},{"day":"Tue","start":"14:30","end":"16:00"},{"day":"Wed","start":"14:30","end":"16:00"},{"day":"Thu","start":"14:30","end":"16:00"}]},{"id":98,"name":"Spanish as Foreign Language C1 (mandatory level test to enroll before coming to Madrid)","ects":6,"year":null,"dept":"Modern Languages Institute","lang":"Spanish","group":"Diploma Business in Spain","prof":"Professor and classroom assigned after taking the test. The schedule will always be either Mondays and Wednesdays or Tuesdays and Thursdays 14,30-16,00h","room":null,"prereq":null,"sessions":[{"day":"Mon","start":"14:30","end":"16:00"},{"day":"Tue","start":"14:30","end":"16:00"},{"day":"Wed","start":"14:30","end":"16:00"},{"day":"Thu","start":"14:30","end":"16:00"}]},{"id":99,"name":"Spanish Culture and History Through Visual Arts","ects":6,"year":3,"dept":"Management/Humanities","lang":"English","group":"Diploma Business in Spain A","prof":"Fernández Abella, Rubén","room":"O-206","prereq":null,"sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":100,"name":"Spanish Culture and History Through Visual Arts","ects":6,"year":3,"dept":"Management/Humanities","lang":"English","group":"Diploma Business in Spain B","prof":"Ramos Fernández, María Eugenia","room":"O-311","prereq":null,"sessions":[{"day":"Tue","start":"15:00","end":"17:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":101,"name":"Supply Chain Management Fundamentals and Analytics","ects":6,"year":3,"dept":"Management","lang":"English","group":"E8","prof":"Díaz-Plaza Sanz, Enrique","room":"O-102","prereq":"Very technical course. Phyton, R+, Programming and Maths. Basic Programming knowledge.","sessions":[{"day":"Wed","start":"08:00","end":"10:00"},{"day":"Fri","start":"08:00","end":"10:00"}]},{"id":102,"name":"Técnicas de Negociación y Gestión de Conflictos","ects":6,"year":4,"dept":"Management","lang":"English","group":"E2 English","prof":"Santos Ugarte, Sara María","room":"O-107","prereq":null,"sessions":[{"day":"Mon","start":"17:00","end":"19:00"},{"day":"Wed","start":"17:00","end":"19:00"}]},{"id":103,"name":"Ventas y Retailing","ects":6,"year":4,"dept":"Marketing","lang":"Spanish","group":"(E2)_MK","prof":"Holgado Gomez, Rocío","room":"O-102","prereq":null,"sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Fri","start":"14:30","end":"16:00"}]},{"id":104,"name":"Ventas y Retailing","ects":6,"year":4,"dept":"Marketing","lang":"English","group":"(E2)_MK","prof":"Gómez Parra, Alejandro","room":"O-108","prereq":null,"sessions":[{"day":"Wed","start":"15:00","end":"17:00"},{"day":"Fri","start":"14:30","end":"16:00"}]}];
+
+const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+const DAY_LABEL = {Mon:"Monday", Tue:"Tuesday", Wed:"Wednesday", Thu:"Thursday", Fri:"Friday"};
+const GRID_START = 8*60;   // 08:00 in minutes
+const GRID_END = 21*60;    // 21:00 in minutes
+const PALETTE = [
+  {bg:"#B2562C", fg:"#FFF6EE"}, // terracotta
+  {bg:"#1F7A72", fg:"#EAFBF7"}, // azulejo teal
+  {bg:"#6B7A3A", fg:"#F6FAEA"}, // olive
+  {bg:"#2E4374", fg:"#EDF1FC"}, // ironwork navy
+  {bg:"#B6862C", fg:"#FFF8E8"}, // ochre
+  {bg:"#6E4E7A", fg:"#F6EEFA"}, // stone violet
+  {bg:"#47643D", fg:"#EEF6EC"}, // moss
+  {bg:"#8C4468", fg:"#FBEEF4"}, // mauve
+  {bg:"#395C78", fg:"#EAF2F9"}, // slate blue
+  {bg:"#B77A1E", fg:"#FFF6E7"}, // saffron
+];
+
+const STORAGE_KEY = "icade_fall_2627_schedule_v1";
+let selected = new Set(loadState());
+let langFilter = new Set();       // empty = all
+let deptFilter = new Set();       // empty = all
+let searchTerm = "";
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return [];
+    const ids = JSON.parse(raw);
+    return ids.filter(id => COURSES[id]);
+  }catch(e){ return []; }
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
+}
+function toMinutes(hhmm){
+  const [h,m] = hhmm.split(":").map(Number);
+  return h*60+m;
+}
+function overlaps(a,b){
+  return a.day===b.day && toMinutes(a.start) < toMinutes(b.end) && toMinutes(b.start) < toMinutes(a.end);
+}
+function colorFor(id){ return PALETTE[id % PALETTE.length]; }
+function fmtName(c){
+  return c.name.trim();
+}
+
+let toastTimer = null;
+function toast(msg, type){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type === 'error' ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.className = ''; }, 3200);
+}
+
+function tryAdd(id){
+  const course = COURSES[id];
+  const sameName = [...selected].filter(sid => COURSES[sid].name === course.name && sid !== id);
+  const others = [...selected].filter(sid => !sameName.includes(sid) && sid !== id);
+
+  for(const sid of others){
+    const other = COURSES[sid];
+    for(const s1 of course.sessions){
+      for(const s2 of other.sessions){
+        if(overlaps(s1,s2)){
+          toast(`Time conflict — "${fmtName(course)}" (${DAY_LABEL[s1.day]} ${s1.start}) overlaps "${fmtName(other)}" (${other.group||''}).`, 'error');
+          return;
+        }
+      }
+    }
+  }
+  sameName.forEach(sid => selected.delete(sid));
+  selected.add(id);
+  saveState();
+  if(sameName.length) toast(`Swapped section for "${fmtName(course)}".`);
+  else toast(`Added "${fmtName(course)}".`);
+  render();
+  if(isMobile()) closeCatalog();
+}
+function removeCourse(id){
+  selected.delete(id);
+  saveState();
+  render();
+}
+function clearAll(){
+  if(selected.size===0) return;
+  selected.clear();
+  saveState();
+  render();
+  toast('Schedule cleared.');
+}
+
+function matchesFilters(c){
+  if(langFilter.size && !langFilter.has(c.lang)) return false;
+  if(deptFilter.size && !deptFilter.has(c.dept)) return false;
+  if(searchTerm){
+    const hay = [c.name, c.prof, c.dept, c.group, c.room].filter(Boolean).join(' ').toLowerCase();
+    if(!hay.includes(searchTerm)) return false;
+  }
+  return true;
+}
+
+function syncDropdown(triggerId, countId, filterSet){
+  const trigger = document.getElementById(triggerId);
+  document.getElementById(countId).textContent = filterSet.size || '';
+  trigger.classList.toggle('has-selection', filterSet.size > 0);
+}
+
+function buildDropdown(panelId, triggerId, countId, options, filterSet){
+  const panel = document.getElementById(panelId);
+  panel.innerHTML = '';
+  options.forEach(opt=>{
+    const label = document.createElement('label');
+    label.className = 'dropdown-option';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = filterSet.has(opt);
+    cb.addEventListener('change', ()=>{
+      cb.checked ? filterSet.add(opt) : filterSet.delete(opt);
+      syncDropdown(triggerId, countId, filterSet);
+      renderList();
+    });
+    const span = document.createElement('span');
+    span.textContent = opt;
+    label.append(cb, span);
+    panel.appendChild(label);
+  });
+  const footer = document.createElement('div');
+  footer.className = 'dropdown-footer';
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = 'Clear';
+  clearBtn.addEventListener('click', ()=>{
+    filterSet.clear();
+    panel.querySelectorAll('input').forEach(i => i.checked = false);
+    syncDropdown(triggerId, countId, filterSet);
+    renderList();
+  });
+  footer.appendChild(clearBtn);
+  panel.appendChild(footer);
+  syncDropdown(triggerId, countId, filterSet);
+}
+
+function closeAllDropdowns(){
+  document.querySelectorAll('.dropdown-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.dropdown-trigger.open').forEach(t => t.classList.remove('open'));
+}
+function toggleDropdown(panelId, triggerId){
+  const panel = document.getElementById(panelId);
+  const wasOpen = panel.classList.contains('open');
+  closeAllDropdowns();
+  if(!wasOpen){
+    panel.classList.add('open');
+    document.getElementById(triggerId).classList.add('open');
+  }
+}
+
+function renderList(){
+  const list = document.getElementById('courseList');
+  const filtered = COURSES.filter(matchesFilters);
+  document.getElementById('resultCount').textContent = `${filtered.length} of ${COURSES.length} sections`;
+  list.innerHTML = '';
+  if(!filtered.length){
+    const d = document.createElement('div');
+    d.className = 'no-results';
+    d.textContent = 'No courses match your search or filters.';
+    list.appendChild(d);
+    return;
+  }
+  for(const c of filtered){
+    const card = document.createElement('article');
+    card.className = 'course-card' + (selected.has(c.id) ? ' is-selected' : '');
+
+    const title = document.createElement('p');
+    title.className = 'course-title';
+    title.textContent = fmtName(c);
+    card.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'course-meta';
+    meta.innerHTML = `
+      <span class="tag ects">${c.ects} ECTS</span>
+      <span class="tag">${c.lang}</span>
+      <span class="tag">${c.dept}</span>
+      ${c.year ? `<span class="tag">Yr ${c.year}</span>` : ''}
+    `;
+    card.appendChild(meta);
+
+    const sub = document.createElement('p');
+    sub.className = 'course-sub';
+    sub.textContent = `${c.group ? c.group + ' · ' : ''}${c.prof || 'Professor TBD'}${c.room ? ' · ' + c.room : ''}`;
+    card.appendChild(sub);
+
+    if(c.sessions.length){
+      const sess = document.createElement('div');
+      sess.className = 'course-sessions';
+      c.sessions.forEach(s=>{
+        const chip = document.createElement('span');
+        chip.className = 'session-chip';
+        chip.textContent = `${s.day} ${s.start}–${s.end}`;
+        sess.appendChild(chip);
+      });
+      card.appendChild(sess);
+    } else {
+      const chip = document.createElement('div');
+      chip.className = 'course-sessions';
+      chip.innerHTML = '<span class="session-chip">Schedule TBD</span>';
+      card.appendChild(chip);
+    }
+
+    if(c.prereq){
+      const pr = document.createElement('p');
+      pr.className = 'prereq';
+      pr.textContent = c.prereq;
+      card.appendChild(pr);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if(selected.has(c.id)){
+      btn.className = 'btn secondary';
+      btn.textContent = 'Remove';
+      btn.addEventListener('click', ()=>removeCourse(c.id));
+    } else {
+      const sameNameSelected = [...selected].some(sid => COURSES[sid].name === c.name);
+      btn.className = 'btn';
+      btn.textContent = sameNameSelected ? 'Switch to this section' : 'Add to schedule';
+      btn.addEventListener('click', ()=>tryAdd(c.id));
+    }
+    actions.appendChild(btn);
+    card.appendChild(actions);
+
+    list.appendChild(card);
+  }
+}
+
+function renderGrid(){
+  const area = document.getElementById('gridArea');
+  const scheduled = [...selected].filter(id => COURSES[id].sessions.length);
+
+  if(!scheduled.length){
+    area.innerHTML = '<div class="empty-grid">Your timetable is empty — search the course list and add a section to get started.</div>';
+    return;
+  }
+
+  const pxPerMin = 0.92;
+  const totalMin = GRID_END - GRID_START;
+  const gridHeight = totalMin * pxPerMin;
+
+  let html = `<div class="grid-scroll"><div class="grid-wrap">`;
+  html += `<div class="grid-days"><div class="corner"></div>`;
+  DAYS.forEach(d => html += `<div class="day-label">${d}</div>`);
+  html += `</div>`;
+
+  html += `<div class="grid-body" style="height:${gridHeight}px">`;
+  html += `<div class="time-axis">`;
+  for(let t = GRID_START; t <= GRID_END; t += 60){
+    const top = (t - GRID_START) * pxPerMin;
+    const h = t/60;
+    html += `<span class="hour-label" style="top:${top}px">${h}</span>`;
+  }
+  html += `</div>`;
+
+  DAYS.forEach(day => {
+    html += `<div class="day-col">`;
+    for(let t = GRID_START; t <= GRID_END; t += 30){
+      const top = (t - GRID_START) * pxPerMin;
+      const isHour = (t % 60 === 0);
+      html += `<div class="hour-line${isHour ? '' : ' half'}" style="top:${top}px"></div>`;
+    }
+    scheduled.forEach(id => {
+      const c = COURSES[id];
+      const color = colorFor(id);
+      c.sessions.filter(s=>s.day===day).forEach(s=>{
+        const top = (toMinutes(s.start) - GRID_START) * pxPerMin;
+        const height = (toMinutes(s.end) - toMinutes(s.start)) * pxPerMin;
+        html += `<div class="block" style="top:${top}px; height:${height}px; background:${color.bg}; color:${color.fg}" data-id="${id}" title="${fmtName(c)}">
+          <button class="b-remove" data-remove="${id}" aria-label="Remove ${fmtName(c)}">×</button>
+          <span class="b-name">${fmtName(c)}</span>
+          <span class="b-meta line-full">${s.start}–${s.end} · ${c.room||''}</span>
+          <span class="b-meta line-room">${c.room||''}</span>
+          <span class="b-meta b-group">${c.group||''}</span>
+        </div>`;
+      });
+    });
+    html += `</div>`;
+  });
+  html += `</div></div></div>`;
+  area.innerHTML = html;
+
+  area.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      removeCourse(Number(btn.dataset.remove));
+    });
+  });
+  area.querySelectorAll('.block').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('.b-remove')) return;
+      const c = COURSES[Number(el.dataset.id)];
+      toast(`${fmtName(c)} · ${c.group || ''} · ${c.room || 'room TBD'} · ${c.prof || ''}`);
+    });
+  });
+}
+
+function renderSummary(){
+  const strip = document.getElementById('summaryStrip');
+  strip.innerHTML = '';
+  const scheduled = [...selected].filter(id => COURSES[id].sessions.length);
+  scheduled.sort((a,b)=> a-b).forEach(id=>{
+    const c = COURSES[id];
+    const color = colorFor(id);
+    const pill = document.createElement('div');
+    pill.className = 'summary-pill';
+    pill.innerHTML = `<span class="swatch" style="background:${color.bg}"></span>${fmtName(c)} <button aria-label="Remove ${fmtName(c)}">×</button>`;
+    pill.querySelector('button').addEventListener('click', ()=>removeCourse(id));
+    strip.appendChild(pill);
+  });
+  if(!scheduled.length){
+    strip.innerHTML = '<span style="color:var(--muted); font-size:.82rem;">No sections selected yet.</span>';
+  }
+
+  const tbdIds = [...selected].filter(id => !COURSES[id].sessions.length);
+  const tray = document.getElementById('tbdTray');
+  const tbdList = document.getElementById('tbdList');
+  if(tbdIds.length){
+    tray.hidden = false;
+    tbdList.innerHTML = '';
+    tbdIds.forEach(id=>{
+      const c = COURSES[id];
+      const color = colorFor(id);
+      const pill = document.createElement('div');
+      pill.className = 'summary-pill';
+      pill.innerHTML = `<span class="swatch" style="background:${color.bg}"></span>${fmtName(c)} <button aria-label="Remove ${fmtName(c)}">×</button>`;
+      pill.querySelector('button').addEventListener('click', ()=>removeCourse(id));
+      tbdList.appendChild(pill);
+    });
+  } else {
+    tray.hidden = true;
+  }
+}
+
+function renderStats(){
+  const ids = [...selected];
+  document.getElementById('statCourses').textContent = ids.length;
+  const ects = ids.reduce((sum,id)=> sum + (COURSES[id].ects||0), 0);
+  document.getElementById('statEcts').textContent = ects;
+}
+
+function render(){
+  renderList();
+  renderSummary();
+  renderGrid();
+  renderStats();
+}
+
+document.getElementById('search').addEventListener('input', (e)=>{
+  searchTerm = e.target.value.trim().toLowerCase();
+  renderList();
+});
+document.getElementById('clearBtn').addEventListener('click', clearAll);
+document.getElementById('printBtn').addEventListener('click', ()=>window.print());
+
+const catalogEl = document.querySelector('.catalog');
+function isMobile(){ return window.matchMedia('(max-width: 640px)').matches; }
+function openCatalog(){
+  catalogEl.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCatalog(){
+  catalogEl.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('fab').addEventListener('click', openCatalog);
+document.getElementById('catalogClose').addEventListener('click', closeCatalog);
+
+document.getElementById('langTrigger').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  toggleDropdown('langPanel', 'langTrigger');
+});
+document.getElementById('deptTrigger').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  toggleDropdown('deptPanel', 'deptTrigger');
+});
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.dropdown')) closeAllDropdowns();
+});
+
+const LANGS = [...new Set(COURSES.map(c=>c.lang))].sort();
+const DEPTS = [...new Set(COURSES.map(c=>c.dept))].sort();
+buildDropdown('langPanel', 'langTrigger', 'langCount', LANGS, langFilter);
+buildDropdown('deptPanel', 'deptTrigger', 'deptCount', DEPTS, deptFilter);
+render();
+</script>
