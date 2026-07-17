@@ -256,7 +256,7 @@ body{
 }
 .block .b-name{font-size:.72rem; font-weight:700; line-height:1.2; font-family:var(--sans);}
 .block .b-meta{font-size:.63rem; font-family:var(--mono); opacity:.85; line-height:1.25; font-variant-numeric:tabular-nums;}
-.block .line-room{display:none;}
+.block .line-room{display:block;}
 .block .b-remove{
   position:absolute; top:3px; right:4px; width:16px; height:16px; border-radius:50%;
   background:rgba(0,0,0,.18); color:#fff; border:none; font-size:.7rem; line-height:16px; text-align:center;
@@ -332,7 +332,7 @@ body{
   .grid-days .day-label{font-size:.72rem; padding:8px 1px; color:var(--ink); font-weight:600; letter-spacing:0;}
   .time-axis .hour-label{font-size:.66rem; right:5px; color:var(--muted); font-family:var(--sans);}
   .block .b-name{font-size:.68rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .block .line-full, .block .b-group{display:none;}
+  .block .line-full, .block .b-group, .block .line-prof{display:none;}
   .block .line-room{display:block; font-size:.6rem; opacity:.95;}
   .block .b-remove{display:flex; align-items:center; justify-content:center;}
 
@@ -813,11 +813,12 @@ function renderGrid(){
       c.sessions.filter(s=>s.day===day).forEach(s=>{
         const top = (toMinutes(s.start) - GRID_START) * pxPerMin;
         const height = (toMinutes(s.end) - toMinutes(s.start)) * pxPerMin;
-        html += `<div class="block" style="top:${top}px; height:${height}px; background:${color.bg}; color:${color.fg}" data-id="${id}" title="${fmtName(c)}">
+        html += `<div class="block" style="top:${top}px; height:${height}px; background:${color.bg}; color:${color.fg}" data-id="${id}" title="${fmtName(c)}${c.prof ? ' · ' + c.prof : ''}">
           <button class="b-remove" data-remove="${id}" aria-label="Remove ${fmtName(c)}">×</button>
           <span class="b-name">${fmtName(c)}</span>
-          <span class="b-meta line-full">${s.start}–${s.end} · ${c.room||''}</span>
+          <span class="b-meta line-full">${s.start}–${s.end}</span>
           <span class="b-meta line-room">${c.room||''}</span>
+          <span class="b-meta line-prof">${c.prof||''}</span>
           <span class="b-meta b-group">${c.group||''}</span>
         </div>`;
       });
