@@ -591,8 +591,7 @@ function toast(msg, type){
 
 function tryAdd(id){
   const course = COURSES[id];
-  const sameName = [...selected].filter(sid => COURSES[sid].name === course.name && sid !== id);
-  const others = [...selected].filter(sid => !sameName.includes(sid) && sid !== id);
+  const others = [...selected].filter(sid => sid !== id);
 
   for(const sid of others){
     const other = COURSES[sid];
@@ -605,11 +604,9 @@ function tryAdd(id){
       }
     }
   }
-  sameName.forEach(sid => selected.delete(sid));
   selected.add(id);
   persistSelected();
-  if(sameName.length) toast(`Swapped section for "${fmtName(course)}".`);
-  else toast(`Added "${fmtName(course)}".`);
+  toast(`Added "${fmtName(course)}".`);
   render();
   if(isMobile()) closeCatalog();
 }
@@ -761,9 +758,8 @@ function renderList(){
       btn.textContent = 'Remove';
       btn.addEventListener('click', ()=>removeCourse(c.id));
     } else {
-      const sameNameSelected = [...selected].some(sid => COURSES[sid].name === c.name);
       btn.className = 'btn';
-      btn.textContent = sameNameSelected ? 'Switch to this section' : 'Add to schedule';
+      btn.textContent = 'Add to schedule';
       btn.addEventListener('click', ()=>tryAdd(c.id));
     }
     actions.appendChild(btn);
